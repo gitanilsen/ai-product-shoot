@@ -1,1 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Product Photoshoot Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            cursor: pointer;
+        }
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .preview-img {
+            width: 100%;
+            height: 12rem; /* 192px */
+            object-fit: cover;
+            border-radius: 0.5rem;
+            background-color: #e5e7eb;
+            border: 2px dashed #d1d5db;
+        }
+        .result-img {
+            width: 100%;
+            height: 16rem; /* 256px */
+            object-fit: cover;
+            border-radius: 0.5rem;
+            background-color: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Gallery Styles */
+        .gallery-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+        }
+        .gallery-content {
+            max-width: 90vw;
+            max-height: 90vh;
+        }
+        .gallery-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+        .gallery-btn:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        .gallery-prev {
+            left: 1rem;
+        }
+        .gallery-next {
+            right: 1rem;
+        }
+        .gallery-close {
+            position: absolute;
+            top: 1rem;
+            right: 2rem;
+            color: white;
+            font-size: 3rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
 
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-8 md:mb-12">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">AI Product Photoshoot Generator</h1>
+            <p class="text-md text-gray-600 mt-2">Create professional photoshoots for your Kurta & Co-ord sets.</p>
+        </header>
+
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg mb-8">
+            <h2 class="text-2xl font-semibold mb-6">1. Upload Your Assets</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div class="flex flex-col items-center">
+                    <img id="model-preview" class="preview-img mb-3" src="https://placehold.co/300x400/e2e8f0/cbd5e0?text=Model+Image">
+                    <label for="model-upload" class="w-full text-center bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer hover:bg-blue-600 transition duration-300">
+                        Upload Model (Face)
+                    </label>
+                    <input id="model-upload" type="file" class="hidden" accept="image/*">
+                </div>
+                <div class="flex flex-col items-center">
+                    <img id="bg-preview" class="preview-img mb-3" src="https://placehold.co/300x400/e2e8f0/cbd5e0?text=Background">
+                    <label for="bg-upload" class="w-full text-center bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer hover:bg-blue-600 transition duration-300">
+                        Upload Background
+                    </label>
+                    <input id="bg-upload" type="file" class="hidden" accept="image/*">
+                </div>
+                <div class="flex flex-col items-center">
+                    <img id="product-front-preview" class="preview-img mb-3" src="https://placehold.co/300x400/e2e8f0/cbd5e0?text=Product+Front">
+                    <label for="product-front-upload" class="w-full text-center bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer hover:bg-blue-600 transition duration-300">
+                        Upload Product (Front)
+                    </label>
+                    <input id="product-front-upload" type="file" class="hidden" accept="image/*">
+                </div>
+                <div class="flex flex-col items-center">
+                    <img id="product-back-preview" class="preview-img mb-3" src="https://placehold.co/300x400/e2e8f0/cbd5e0?text=Product+Back">
+                     <label for="product-back-upload" class="w-full text-center bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer hover:bg-blue-600 transition duration-300">
+                        Upload Product (Back)
+                    </label>
+                    <input id="product-back-upload" type="file" class="hidden" accept="image/*">
+                </div>
+                <div class="flex flex-col items-center">
+                    <img id="bottom-wear-preview" class="preview-img mb-3" src="https://placehold.co/300x400/e2e8f0/cbd5e0?text=Bottom+Wear+(Optional)">
+                     <label for="bottom-wear-upload" class="w-full text-center bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer hover:bg-gray-600 transition duration-300">
+                        Upload Bottom Wear
+                    </label>
+                    <input id="bottom-wear-upload" type="file" class="hidden" accept="image/*">
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center my-8">
+            <button id="generate-btn" class="bg-green-600 text-white font-bold py-3 px-10 rounded-lg text-lg hover:bg-green-700 transition duration-300 shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
+                Generate Photoshoot (6 Images)
+            </button>
+        </div>
+        
+        <div id="message-box" class="hidden fixed top-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-xl transition-opacity duration-300">
+            <p id="message-text"></p>
+        </div>
+
+
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-semibold">2. Generated Images</h2>
+                <button id="download-btn" class="bg-purple-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-purple-700 transition duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                    Download All (.zip)
+                </button>
+            </div>
+            <div id="results-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                </div>
+        </div>
+    </div>
+
+    <!-- Gallery Modal -->
+    <div id="gallery-modal" class="gallery-modal hidden">
+        <span id="gallery-close" class="gallery-close">&times;</span>
+        <button id="gallery-prev" class="gallery-btn gallery-prev">&#10094;</button>
+        <img id="gallery-image" class="gallery-content" src="">
+        <button id="gallery-next" class="gallery-btn gallery-next">&#10095;</button>
+    </div>
+
+    <script>
+        // DOM Elements
+        const modelUpload = document.getElementById('model-upload');
+        const bgUpload = document.getElementById('bg-upload');
+        const productFrontUpload = document.getElementById('product-front-upload');
+        const productBackUpload = document.getElementById('product-back-upload');
+        const bottomWearUpload = document.getElementById('bottom-wear-upload');
+
+        const modelPreview = document.getElementById('model-preview');
+        const bgPreview = document.getElementById('bg-preview');
+        const productFrontPreview = document.getElementById('product-front-preview');
+        const productBackPreview = document.getElementById('product-back-preview');
+        const bottomWearPreview = document.getElementById('bottom-wear-preview');
+
+        const generateBtn = document.getElementById('generate-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const resultsGrid = document.getElementById('results-grid');
+        
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+
+        // Gallery DOM Elements
+        const galleryModal = document.getElementById('gallery-modal');
+        const galleryImage = document.getElementById('gallery-image');
+        const galleryClose = document.getElementById('gallery-close');
+        const galleryPrev = document.getElementById('gallery-prev');
+        const galleryNext = document.getElementById('gallery-next');
+
+        // State
+        let uploadedImages = {
+            model: null,
+            background: null,
+            productFront: null,
+            productBack: null,
+            bottomWear: null
+        };
+        let generatedImages = [];
+        let currentGalleryIndex = 0;
+        
+        // --- Utility Functions ---
+        
+        function showMessage(message, duration = 3000) {
+            messageText.textContent = message;
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, duration);
+        }
+
+        function handleFileSelect(event, previewElement, imageKey) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                const base64String = e.target.result;
+                previewElement.src = base64String;
+                uploadedImages[imageKey] = base64String.split(',')[1]; // Store only base64 data
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function setupInitialState() {
+            resultsGrid.innerHTML = '';
+            for (let i = 0; i < 6; i++) {
+                resultsGrid.innerHTML += `
+                    <div class="result-img">
+                        <div class="loader hidden"></div>
+                        <span class="text-gray-500">Image #${i + 1}</span>
+                    </div>`;
+            }
+        }
+
+
+        // --- Event Listeners ---
+        modelUpload.addEventListener('change', (e) => handleFileSelect(e, modelPreview, 'model'));
+        bgUpload.addEventListener('change', (e) => handleFileSelect(e, bgPreview, 'background'));
+        productFrontUpload.addEventListener('change', (e) => handleFileSelect(e, productFrontPreview, 'productFront'));
+        productBackUpload.addEventListener('change', (e) => handleFileSelect(e, productBackPreview, 'productBack'));
+        bottomWearUpload.addEventListener('change', (e) => handleFileSelect(e, bottomWearPreview, 'bottomWear'));
+
+        generateBtn.addEventListener('click', generatePhotoshoot);
+        downloadBtn.addEventListener('click', downloadAllImages);
+        
+        // Gallery Event Listeners
+        galleryClose.addEventListener('click', closeGallery);
+        galleryPrev.addEventListener('click', () => changeImage(-1));
+        galleryNext.addEventListener('click', () => changeImage(1));
+        resultsGrid.addEventListener('click', (e) => {
+            if (e.target.tagName === 'IMG' && e.target.dataset.index) {
+                openGallery(parseInt(e.target.dataset.index));
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (galleryModal.classList.contains('hidden')) return;
+            if (e.key === 'Escape') closeGallery();
+            if (e.key === 'ArrowLeft') changeImage(-1);
+            if (e.key === 'ArrowRight') changeImage(1);
+        });
+
+        window.onload = setupInitialState;
+
+        // --- Gallery Functions ---
+        function openGallery(index) {
+            const validImages = generatedImages.filter(Boolean);
+            if(validImages.length === 0) return;
+            
+            // Adjust index to map to the valid images array
+            const clickedImageSrc = generatedImages[index];
+            const validIndex = validImages.indexOf(clickedImageSrc);
+            
+            if (validIndex === -1) return;
+
+            currentGalleryIndex = validIndex;
+            galleryImage.src = validImages[currentGalleryIndex];
+            galleryModal.classList.remove('hidden');
+        }
+
+        function closeGallery() {
+            galleryModal.classList.add('hidden');
+        }
+
+        function changeImage(direction) {
+            const validImages = generatedImages.filter(Boolean);
+            if (validImages.length === 0) return;
+            currentGalleryIndex += direction;
+
+            if (currentGalleryIndex >= validImages.length) {
+                currentGalleryIndex = 0;
+            } else if (currentGalleryIndex < 0) {
+                currentGalleryIndex = validImages.length - 1;
+            }
+            galleryImage.src = validImages[currentGalleryIndex];
+        }
+
+
+        // --- Core Logic ---
+        
+        async function generateImage(prompt, images) {
+            const apiKey = "YOUR_API_KEY_HERE"; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        { inlineData: { mimeType: 'image/jpeg', data: images.model } },
+                        { inlineData: { mimeType: 'image/jpeg', data: images.background } },
+                        { inlineData: { mimeType: 'image/jpeg', data: images.productFront } },
+                        ...(images.productBack && prompt.includes("BACK VIEW") ? [{ inlineData: { mimeType: 'image/jpeg', data: images.productBack } }] : []),
+                        ...(images.bottomWear ? [{ inlineData: { mimeType: 'image/jpeg', data: images.bottomWear } }] : []),
+                        ...(images.masterImage ? [{ inlineData: { mimeType: 'image/png', data: images.masterImage } }] : []) 
+                    ]
+                }],
+                generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+            };
+
+            let response;
+            let success = false;
+            let delay = 1000;
+            for (let i = 0; i < 5; i++) {
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) {
+                        success = true;
+                        break;
+                    }
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                }
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2;
+            }
+
+            if (!success) {
+                console.error("API request failed after multiple retries.");
+                return null;
+            }
+
+            const result = await response.json();
+            const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+
+            return base64Data ? `data:image/png;base64,${base64Data}` : null;
+        }
+
+        async function generatePhotoshoot() {
+            const requiredImages = ['model', 'background', 'productFront', 'productBack'];
+            const missingImages = requiredImages.filter(key => !uploadedImages[key]);
+            if (missingImages.length > 0) {
+                showMessage(`Please upload required images: ${missingImages.join(', ')}.`);
+                return;
+            }
+
+            generateBtn.disabled = true;
+            downloadBtn.disabled = true;
+            generatedImages = [];
+            const resultDivs = resultsGrid.children;
+            for (const div of resultDivs) {
+                div.innerHTML = '<div class="loader"></div>';
+            }
+
+            const initialPrompts = [
+                "ACT AS A FASHION PHOTOSHOOT DIRECTOR. Your goal is to create a stunning, dynamic master image. INSTRUCTIONS: 1. **Exact Facial Replication:** From the 'model' photo, you must perform a high-fidelity transfer of the person's face. Replicate the facial structure, features (eyes, nose, mouth), and skin tone with **extreme precision**. The generated face must be an **exact likeness** of the uploaded model's face. While you MUST preserve the face, you SHOULD generate a new, elegant hairstyle that complements the outfit and a natural head posture. DO NOT copy any accessories like earrings. 2. **Intelligent Outfit Assembly:** Your primary task is to create a complete outfit. First, take the garment from the 'product front' photo. Then, CHECK if a 'bottom wear' photo is provided. **If YES, combine the 'product front' garment with the provided 'bottom wear' garment.** If NO 'bottom wear' is provided, you must act as a stylist: analyze the 'product front' garment and generate a PERFECTLY complementary bottom wear and footwear. This complete outfit (either combined from uploads or partially generated) must be maintained across all subsequent images. 3. **Dynamic Posing:** Place the model in a dynamic, natural, and unique fashion pose. Avoid static, repetitive stances. 4. **Seamless Integration:** Blend the model into the 'background' image with perfectly matched lighting and realistic shadows to create a cohesive, believable single photograph."
+            ];
+
+            const subsequentPrompts = [
+                "PHOTOSHOOT CONTINUITY: Based on the Master Image, create a second, distinct front-facing shot. INSTRUCTIONS: 1. Adopt a contrasting dynamic pose (e.g., a gentle laugh, hands in pockets, interacting with the outfit). The pose must feel different from the Master Image but part of the same set. 2. Flawlessly maintain the model's EXACT face, the complete styled outfit (including the specified or generated bottom wear), and the background from the Master Image. No details may change.",
+                "PHOTOSHOOT CONTINUITY (BACK VIEW): Based on the Master Image, create the back view. INSTRUCTIONS: 1. Turn the model to showcase the back of the garment, using the 'product back' image as the primary reference for the design. The pose should be elegant, with a natural head position (e.g., looking gracefully over the shoulder). 2. Flawlessly maintain the model's EXACT face, the complete styled outfit (including the specified or generated bottom wear), and the background from the Master Image.",
+                "PHOTOSHOOT CONTINUITY (SIDE POSE 1): Based on the Master Image, create a three-quarter or profile shot. INSTRUCTIONS: 1. Pose the model in a graceful three-quarter turn that showcases the garment's silhouette and drape. The pose should feel candid and natural. 2. Flawlessly maintain the model's EXACT face, the complete styled outfit (including the specified or generated bottom wear), and the background from the Master Image.",
+                "PHOTOSHOOT CONTINUITY (SIDE POSE 2): Based on the Master Image, create a second, unique side pose. INSTRUCTIONS: 1. Re-render the model in a distinctly different side pose, perhaps capturing a moment of movement like a walking stride or looking thoughtfully off-camera. 2. Flawlessly maintain the model's EXACT face, the complete styled outfit (including the specified or generated bottom wear), and the background from the Master Image.",
+                "PHOTOShoot CONTINUITY (CLOSE-UP): Based on the Master Image, create a beautiful close-up. INSTRUCTIONS: 1. Frame a tight shot from the chest up, focusing on the product's texture, neckline, and fabric detail. The model should have a soft, natural expression. 2. Flawlessly maintain the model's EXACT face and outfit details. The background should be present but artistically blurred (bokeh effect) to draw full attention to the product."
+            ];
+
+            let masterImageBase64 = null;
+
+            // --- Generation Process with Gallery Integration ---
+
+            const processImage = (imageData, index) => {
+                const imgElement = document.createElement('img');
+                imgElement.className = "w-full h-full object-cover";
+                imgElement.dataset.index = index; // Add index for gallery
+                
+                if (imageData) {
+                    imgElement.src = imageData;
+                    generatedImages[index] = imageData;
+                } else {
+                    imgElement.src = "https://placehold.co/400x600/fecaca/991b1b?text=Generation+Failed";
+                    generatedImages[index] = null;
+                }
+                
+                const resultDiv = resultDivs[index];
+                resultDiv.innerHTML = '';
+                resultDiv.appendChild(imgElement);
+                resultDiv.classList.add('cursor-pointer');
+            };
+
+            // Step 1: Generate the first (master) image
+            const firstImageData = await generateImage(initialPrompts[0], uploadedImages);
+            processImage(firstImageData, 0);
+            
+            if (firstImageData) {
+                masterImageBase64 = firstImageData.split(',')[1];
+            } else {
+                showMessage("Failed to generate the master image. Please try again.");
+                generateBtn.disabled = false;
+                return;
+            }
+
+            // Step 2: Generate the remaining 5 images using the master image
+            const remainingPromises = subsequentPrompts.map(async (prompt, index) => {
+                const currentImageIndex = index + 1;
+                const imagesForCall = { ...uploadedImages, masterImage: masterImageBase64 };
+                const imageData = await generateImage(prompt, imagesForCall);
+                processImage(imageData, currentImageIndex);
+            });
+            
+            await Promise.all(remainingPromises);
+
+            generateBtn.disabled = false;
+            if (generatedImages.filter(Boolean).length > 0) {
+                 downloadBtn.disabled = false;
+            }
+        }
+        
+        function downloadAllImages() {
+            const validImages = generatedImages.filter(Boolean);
+            if (validImages.length === 0) {
+                showMessage("No valid images were generated to download.");
+                return;
+            }
+            
+            const zip = new JSZip();
+            validImages.forEach((imgData, index) => {
+                const base64 = imgData.split(',')[1];
+                zip.file(`product_image_${index + 1}.png`, base64, { base64: true });
+            });
+
+            zip.generateAsync({ type: "blob" })
+                .then(function(content) {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(content);
+                    link.download = "ai-product-photoshoot.zip";
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+        }
+    </script>
+
+</body>
+</html>
